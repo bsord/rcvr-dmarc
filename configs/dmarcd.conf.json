@@ -1,4 +1,0 @@
-{
-    "sql_dsn": "rcvr-dbuser:R3ceiverDB@tcp(rcvr-db:3306)/rcvr-db?readTimeout=10s&writeTimeout=10s",
-    "redishost" : "rcvr-queue"
-}
