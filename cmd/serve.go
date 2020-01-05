@@ -33,15 +33,11 @@ var (
 		Run:   serve,
 	}
 
-	config = &DmarcConfig{}
+
 
 	signalChannel = make(chan os.Signal, 1) // for trapping SIGHUP and friends
 )
-//DmarcConfig struct
-type DmarcConfig struct {
-	SQLDsn		string	`json:"sql_dsn"`
-	RedisHost	string 	`json:"redishost"`
-}
+
 
 //MessageQueueItem struct to match what goes in from smtp handler
 type MessageQueueItem struct {
@@ -154,7 +150,9 @@ type FlatDmarcRecord struct {
 
 func dbConn() (db *sql.DB) {
     dbDriver := "mysql"
-    db, err := sql.Open(dbDriver, os.Getenv("SQLDSN"))
+	sqlDsn := os.Getenv("DBUSER") + ":" + os.Getenv("DBPASS") + "@tcp(" + os.Getenv("DBHOST") + ":" + os.Getenv("DBPORT") + ")/" + os.Getenv("DBNAME") + "?readTimeout=10s&writeTimeout=10s"
+    fmt.Println(sqlDsn)
+    db, err := sql.Open(dbDriver, sqlDsn)
     if err != nil {
         panic(err.Error())
     }
