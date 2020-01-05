@@ -151,7 +151,6 @@ type FlatDmarcRecord struct {
 func dbConn() (db *sql.DB) {
     dbDriver := "mysql"
 	sqlDsn := os.Getenv("DBUSER") + ":" + os.Getenv("DBPASS") + "@tcp(" + os.Getenv("DBHOST") + ":" + os.Getenv("DBPORT") + ")/" + os.Getenv("DBNAME") + "?readTimeout=10s&writeTimeout=10s"
-    fmt.Println(sqlDsn)
     db, err := sql.Open(dbDriver, sqlDsn)
     if err != nil {
         panic(err.Error())
