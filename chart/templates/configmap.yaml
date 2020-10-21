@@ -11,6 +11,3 @@ data:
 
   redishost: {{ .Values.redisHost }}
   redisport: "{{ .Values.redisPort }}"
-
-  smtp_hostname: {{ .Values.smtpHostname }}
-  smtp_allowed_hosts: "{{ .Values.smtpAllowedHosts }}"
