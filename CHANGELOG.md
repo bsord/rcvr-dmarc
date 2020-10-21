@@ -1,4 +1,13 @@
-# 0.1.0 (2020-10-21)
+## [0.1.1](https://github.com/bsord/rcvr-dmarc/compare/0.1.0...0.1.1) (2020-10-21)
+
+
+### Bug Fixes
+
+* **helm:** remove unused ports and probes ([d140525](https://github.com/bsord/rcvr-dmarc/commit/d140525effbf5451913cdf2e7465340fc4dca3e4))
+
+
+
+# [0.1.0](https://github.com/bsord/rcvr-dmarc/compare/b8f9049f5aed9124f6543a4c92fb5ceca5580802...0.1.0) (2020-10-21)
 
 
 ### Features
