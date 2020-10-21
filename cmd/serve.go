@@ -220,7 +220,7 @@ func sigHandler() {
 
 func serve(cmd *cobra.Command, args []string) {
 		
-	client, err := redis.Dial("tcp", os.Getenv("REDISHOST") + ":6379")
+	client, err := redis.DialURL("redis://:"+os.Getenv("REDISPASSWORD")+"@"+os.Getenv("REDISHOST")+":6379/0")
 
 	if err != nil {
 		fmt.Println(err)
