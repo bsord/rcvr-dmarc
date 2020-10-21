@@ -1,3 +1,12 @@
+## [0.1.2](https://github.com/bsord/rcvr-dmarc/compare/0.1.1...0.1.2) (2020-10-21)
+
+
+### Bug Fixes
+
+* **helm:** remove unused configmap values ([1d5cda1](https://github.com/bsord/rcvr-dmarc/commit/1d5cda167644dca39a93b9bda18755d13a3e5047))
+
+
+
 ## [0.1.1](https://github.com/bsord/rcvr-dmarc/compare/0.1.0...0.1.1) (2020-10-21)
 
 
