@@ -1,3 +1,12 @@
+## [0.1.3](https://github.com/bsord/rcvr-dmarc/compare/0.1.2...0.1.3) (2020-10-21)
+
+
+### Bug Fixes
+
+* **redis:** implement RFC 3986 urls ([b5daaad](https://github.com/bsord/rcvr-dmarc/commit/b5daaadec9a9eb10e6e903b989838f97b6576dbc))
+
+
+
 ## [0.1.2](https://github.com/bsord/rcvr-dmarc/compare/0.1.1...0.1.2) (2020-10-21)
 
 
