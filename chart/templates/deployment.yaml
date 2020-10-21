@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rcvr-dmarc.fullname" . }}
+  labels:
+    {{- include "rcvr-dmarc.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rcvr-dmarc.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rcvr-dmarc.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ include "rcvr-dmarc.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DBHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: rcvr-dmarc-config
+                  key: dbhost
+            - name: DBPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: rcvr-dmarc-config
+                  key: dbport
+            - name: DBNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: rcvr-dmarc-config
+                  key: dbname
+            - name: REDISHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: rcvr-dmarc-config
+                  key: redishost
+            - name: REDISPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rcvr-dmarc-db-user-pass
+                  key: redis-password
+            - name: DBUSER
+              valueFrom:
+                configMapKeyRef:
+                  name: rcvr-dmarc-config
+                  key: dbuser
+            - name: DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: rcvr-dmarc-db-user-pass
+                  key: mariadb-root-password
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

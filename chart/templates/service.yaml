@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rcvr-dmarc.fullname" . }}
+  labels:
+    {{- include "rcvr-dmarc.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "rcvr-dmarc.selectorLabels" . | nindent 4 }}

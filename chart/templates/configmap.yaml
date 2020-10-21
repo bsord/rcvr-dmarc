@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rcvr-dmarc-config
+  namespace: rcvr
+data:
+  dbhost: {{ .Values.dbHost }}
+  dbport: "{{ .Values.dbPort }}"
+  dbname: {{ .Values.dbName }}
+  dbuser: {{ .Values.dbUser}}
+
+  redishost: {{ .Values.redisHost }}
+  redisport: "{{ .Values.redisPort }}"
+
+  smtp_hostname: {{ .Values.smtpHostname }}
+  smtp_allowed_hosts: "{{ .Values.smtpAllowedHosts }}"
