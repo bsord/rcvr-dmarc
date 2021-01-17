@@ -1,0 +1,13 @@
+{{- if or (and .Values.autoscaling.enabled (gt (.Values.autoscaling.minReplicas | int) 1)) (gt (.Values.replicaCount | int) 1) -}}
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    {{- include "rcvr-dmarc.labels" . | nindent 4 }}
+  name: {{ include "rcvr-dmarc.fullname" . }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "rcvr-dmarc.selectorLabels" . | nindent 6 }}
+  minAvailable: {{ .Values.minAvailable }}
+{{- end }}
