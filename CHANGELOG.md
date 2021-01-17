@@ -1,3 +1,12 @@
+# [0.2.0](https://github.com/bsord/rcvr-dmarc/compare/0.1.3...0.2.0) (2021-01-17)
+
+
+### Features
+
+* **helm:** enable HA ([64eb6a8](https://github.com/bsord/rcvr-dmarc/commit/64eb6a85f0c5c5eaf782757cc372714468fcb197))
+
+
+
 ## [0.1.3](https://github.com/bsord/rcvr-dmarc/compare/0.1.2...0.1.3) (2020-10-21)
 
 
