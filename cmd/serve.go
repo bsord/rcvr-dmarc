@@ -15,13 +15,14 @@ import (
 	"compress/gzip"
 	"encoding/xml"
 	"database/sql"
-	"bufio"
 	_ "github.com/go-sql-driver/mysql"
 	"time"
 	"github.com/veqryn/go-email/email"
 	"archive/zip"
-	"github.com/likexian/whois-go"
 	"net"
+	"strconv"
+	"golang.org/x/net/publicsuffix"
+	"github.com/oschwald/geoip2-golang"
 )
 
 
@@ -44,6 +45,7 @@ type MessageQueueItem struct {
 	Hash			string `json:"Hash"`
 	ClientID		string `json:"ClientID"`
 	MessageData		string `json:"MessageData"`
+	MessageTime		string `json:"MessageTime"`
 }
 
 //DmarcReport def
@@ -146,6 +148,9 @@ type FlatDmarcRecord struct {
 	SpfResult		string
 	Provider		string
 	Hostname		string
+	ProviderASN		uint
+	ProviderASNOrg	string
+	CountryCode		string
 }
 
 func dbConn() (db *sql.DB) {
@@ -162,11 +167,11 @@ func dbConn() (db *sql.DB) {
 func InsertDmarcRecord(record FlatDmarcRecord) {
     db := dbConn()
 
-	insForm, err := db.Prepare("INSERT INTO dmarc_report(processedtime, msghash, clientid, orgname, dmarcdomain, sourceip, sourcecount, disposition, dmarcspf, dmarcdkim, headerfrom, dkimdomain, dkimresult, spfdomain, spfresult, provider, hostname) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+	insForm, err := db.Prepare("INSERT INTO dmarc_report(processedtime, msghash, clientid, orgname, dmarcdomain, sourceip, sourcecount, disposition, dmarcspf, dmarcdkim, headerfrom, dkimdomain, dkimresult, spfdomain, spfresult, provider, hostname, providerASN, providerASNOrg, countryCode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		panic(err.Error())
 	}
-	insResult, err := insForm.Exec(time.Now(), record.MsgHash, record.ClientID, record.OrgName, record.DmarcDomain, record.SourceIP, record.SourceCount, record.Disposition, record.DmarcSPF, record.DmarcDkim, record.HeaderFrom, record.DkimDomain, record.DkimResult, record.SpfDomain, record.SpfResult, record.Provider, record.Hostname )
+	insResult, err := insForm.Exec(record.ProcessedTime, record.MsgHash, record.ClientID, record.OrgName, record.DmarcDomain, record.SourceIP, record.SourceCount, record.Disposition, record.DmarcSPF, record.DmarcDkim, record.HeaderFrom, record.DkimDomain, record.DkimResult, record.SpfDomain, record.SpfResult, record.Provider, record.Hostname, record.ProviderASN, record.ProviderASNOrg, record.CountryCode )
     if err != nil {
 		panic(err.Error())
 	}
@@ -219,7 +224,14 @@ func sigHandler() {
 }
 
 func serve(cmd *cobra.Command, args []string) {
-		
+
+
+	dbASN, err := geoip2.Open("/geo/GeoLite2-ASN.mmdb")
+	dbLoc, err := geoip2.Open("/geo/GeoLite2-Country.mmdb")
+	defer dbASN.Close()
+	defer dbLoc.Close()
+	
+
 	client, err := redis.DialURL("redis://:"+os.Getenv("REDISPASSWORD")+"@"+os.Getenv("REDISHOST")+":6379/0")
 
 	if err != nil {
@@ -241,10 +253,21 @@ func serve(cmd *cobra.Command, args []string) {
 
 			//Instantiate MessageQueueObject placeholder
 			messageItem := MessageQueueItem{}
+			
 
 			//Populate our MessageItem object from popped item string/json/data
 			json.Unmarshal([]byte(poppedItem[1]), &messageItem)
 
+			fmt.Println(messageItem)
+			//Check if time exists on message for explicit processtime override
+			timestamp,err := strconv.ParseInt(messageItem.MessageTime, 10,64 )
+			messageTime := time.Unix(timestamp, 0)
+			if err != nil {
+				//could not parse email data for attachments
+				fmt.Println(err)
+			}
+
+			fmt.Println(messageTime)
 			//Create new reader for handling raw message data receive from queue
 			mailReader := strings.NewReader(messageItem.MessageData)
 			
@@ -255,9 +278,11 @@ func serve(cmd *cobra.Command, args []string) {
 				fmt.Println(err)
 			}
 
+			
+
 			// TESTING REMOVE
-			whoisraw, err := whois.Whois("a27-57.smtp-out.us-west-2.amazonses.com")
-			fmt.Println(whoisraw)
+			//whoisraw, err := whois.Whois("a27-57.smtp-out.us-west-2.amazonses.com")
+			//fmt.Println(whoisraw)
 
 			//Iterate attachments
 			for _, part := range msg.MessagesAll() {
@@ -288,47 +313,49 @@ func serve(cmd *cobra.Command, args []string) {
 						//Decode the xml data and populate DmarcReport object
 						xmlDecoder.Decode(dmarcReport)
 
-						//Debug output
-						//fmt.Println(dmarcReport.Record[0].Row.SourceIP)
 
-						
-						
+						//get asn and countrycode
+						ip := net.ParseIP(dmarcReport.Record[0].Row.SourceIP)
+
+						locData, err := dbLoc.Country(ip)
+						asnData, err := dbASN.ASN(ip)
+						countryCode := locData.Country.IsoCode
+						providerASN := asnData.AutonomousSystemNumber
+						providerASNOrg := asnData.AutonomousSystemOrganization 
+
+						//Debug output
+						fmt.Println(dmarcReport.Record[0].Row.SourceIP)
 						for i := 0; i < len(dmarcReport.Record); i++ {
+
 							hostname := ""
 							providerOrg := ""
 
+							//lookup hostname by ip
 							resolver, err := net.LookupAddr(dmarcReport.Record[i].Row.SourceIP)
 							if err != nil {
 								fmt.Println(err)
 								hostname = "unknown"
 							} else {
-								hostname = resolver[0]
+								//check if hostname
+								hostname = strings.TrimSuffix(resolver[0], ".")
 								if hostname != "" {
-									whoisraw, err := whois.Whois(hostname)
-									fmt.Println(err)
+									//get tld if hostname is not empty
+									fmt.Println(hostname)
+									tldPlusOne, err := publicsuffix.EffectiveTLDPlusOne(hostname)
+									fmt.Println(tldPlusOne)
 									if err != nil {
-										fmt.Println(err)
-										providerOrg = "not avail"
+										providerOrg = "Unknown"
 									} else {
-										reader := bytes.NewReader([]byte(whoisraw))
-										scanner := bufio.NewScanner(reader)
-										// Scan lines
-										scanner.Split(bufio.ScanLines)
-
-										// Scan through lines and find refer server
-										for scanner.Scan() {
-											line := scanner.Text()
-
-											if strings.Contains(line, "OrgName:") {
-												// Trim the refer: on left
-												providerOrg = strings.TrimPrefix(line, "OrgName:")
-												// Trim whitespace
-												providerOrg = strings.TrimSpace(providerOrg)
-											}
-										}
+										
+										providerOrg = tldPlusOne
+										
 									}
+								} else {
+									providerOrg = "Unknown"
 								}
 							}
+							
+							
 
 							dkimProcessed := DmarcRecordDkimAuthResult{
 								Domain: "Not Present",
@@ -344,6 +371,7 @@ func serve(cmd *cobra.Command, args []string) {
 
 
 							report := FlatDmarcRecord{
+								ProcessedTime: messageTime,
 								MsgHash: messageItem.Hash,
 								ClientID: messageItem.ClientID,
 								OrgName: dmarcReport.Metadata.OrgName,
@@ -360,6 +388,9 @@ func serve(cmd *cobra.Command, args []string) {
 								SpfResult: dmarcReport.Record[i].AuthResults.Spf.Result,
 								Provider: providerOrg,
 								Hostname: hostname,
+								ProviderASNOrg: providerASNOrg,
+								ProviderASN: providerASN,
+								CountryCode: countryCode,
 							}
 							fmt.Println(report)
 							InsertDmarcRecord(report)
@@ -382,6 +413,15 @@ func serve(cmd *cobra.Command, args []string) {
 					//Decode the xml data and populate DmarcReport object
 					xmlDecoder.Decode(dmarcReport)
 
+					//get asn and countrycode
+					ip := net.ParseIP(dmarcReport.Record[0].Row.SourceIP)
+
+					locData, err := dbLoc.Country(ip)
+					asnData, err := dbASN.ASN(ip)
+					countryCode := locData.Country.IsoCode
+					providerASN := asnData.AutonomousSystemNumber
+					providerASNOrg := asnData.AutonomousSystemOrganization 
+
 					//Debug output
 					fmt.Println(dmarcReport.Record[0].Row.SourceIP)
 					for i := 0; i < len(dmarcReport.Record); i++ {
@@ -389,36 +429,28 @@ func serve(cmd *cobra.Command, args []string) {
 						hostname := ""
 						providerOrg := ""
 
+						//lookup hostname by ip
 						resolver, err := net.LookupAddr(dmarcReport.Record[i].Row.SourceIP)
 						if err != nil {
 							fmt.Println(err)
 							hostname = "unknown"
 						} else {
-							hostname = resolver[0]
+							//check if hostname
+							hostname = strings.TrimSuffix(resolver[0], ".")
 							if hostname != "" {
-								whoisraw, err := whois.Whois(hostname)
-								fmt.Println(err)
+								//get tld if hostname is not empty
+								fmt.Println(hostname)
+								tldPlusOne, err := publicsuffix.EffectiveTLDPlusOne(hostname)
+								fmt.Println(tldPlusOne)
 								if err != nil {
-									fmt.Println(err)
-									providerOrg = "not avail"
+									providerOrg = "Unknown"
 								} else {
-									reader := bytes.NewReader([]byte(whoisraw))
-									scanner := bufio.NewScanner(reader)
-									// Scan lines
-									scanner.Split(bufio.ScanLines)
-
-									// Scan through lines and find refer server
-									for scanner.Scan() {
-										line := scanner.Text()
-
-										if strings.Contains(line, "OrgName:") {
-											// Trim the refer: on left
-											providerOrg = strings.TrimPrefix(line, "OrgName:")
-											// Trim whitespace
-											providerOrg = strings.TrimSpace(providerOrg)
-										}
-									}
+									
+									providerOrg = tldPlusOne
+									
 								}
+							} else {
+								providerOrg = "Unknown"
 							}
 						}
 						
@@ -438,6 +470,7 @@ func serve(cmd *cobra.Command, args []string) {
 
 
 						report := FlatDmarcRecord{
+							ProcessedTime: messageTime,
 							MsgHash: messageItem.Hash,
 							ClientID: messageItem.ClientID,
 							OrgName: dmarcReport.Metadata.OrgName,
@@ -454,7 +487,11 @@ func serve(cmd *cobra.Command, args []string) {
 							SpfResult: dmarcReport.Record[i].AuthResults.Spf.Result,
 							Provider: providerOrg,
 							Hostname: hostname,
+							ProviderASNOrg: providerASNOrg,
+							ProviderASN: providerASN,
+							CountryCode: countryCode,
 						}
+						fmt.Println(report)
 						InsertDmarcRecord(report)
 					}
 				default :
