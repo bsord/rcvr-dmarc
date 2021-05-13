@@ -1,3 +1,12 @@
+# [0.4.0](https://github.com/bsord/rcvr-dmarc/compare/0.3.0...0.4.0) (2021-05-13)
+
+
+### Features
+
+* **ingestion:** initial bulk ingestion support ([6cdfd7c](https://github.com/bsord/rcvr-dmarc/commit/6cdfd7cbe4f9ae788cee35ab5189a186a11660c1))
+
+
+
 # [0.3.0](https://github.com/bsord/rcvr-dmarc/compare/0.2.0...0.3.0) (2021-02-27)
 
 
@@ -31,15 +40,6 @@
 ### Bug Fixes
 
 * **helm:** remove unused configmap values ([1d5cda1](https://github.com/bsord/rcvr-dmarc/commit/1d5cda167644dca39a93b9bda18755d13a3e5047))
-
-
-
-## [0.1.1](https://github.com/bsord/rcvr-dmarc/compare/0.1.0...0.1.1) (2020-10-21)
-
-
-### Bug Fixes
-
-* **helm:** remove unused ports and probes ([d140525](https://github.com/bsord/rcvr-dmarc/commit/d140525effbf5451913cdf2e7465340fc4dca3e4))
 
 
 
